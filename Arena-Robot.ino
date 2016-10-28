@@ -23,8 +23,8 @@ void setup() {
   outputHigh(4);
   pause(100);
   voltage = readADC(0);
-  if (voltage <= 20000) base = 'w';
-  if (voltage > 20000) base = 'b';
+  if (voltage <= 19000) base = 'w';
+  if (voltage > 19000) base = 'b';
   pause(100);
 }
 
@@ -180,7 +180,10 @@ void rightBumper() {
   pause(5);
   motors('b', 'o', 0);
   backD(.25);
+  pause(100);
   leftD(45);
+  pause(100);
+  forward();
   return;
 }
 
