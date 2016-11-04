@@ -8,8 +8,6 @@ unsigned int voltage;
 unsigned int leftSensor;
 unsigned int frontSensor;
 unsigned int rightSensor;
-float xcoord;
-float ycoord;
 char base;
 boolean onWhite;
 boolean change = false;
@@ -29,7 +27,8 @@ void setup() {
 }
 
 void loop() {
-  if (isHome() == true) seekEnemy();
+  if (isHome() == true) beacon();
+  else enemy();
 }
 
 void forward() {
@@ -96,7 +95,7 @@ void rightD(float degree) {
   return;
 }
 
-boolean isHome() { 
+boolean isHome() { //tests if the robot is currently on friendly ground
   voltage = readADC(0);
   if (voltage <= 20000) {
     onWhite = true;
@@ -115,41 +114,70 @@ boolean isHome() {
   motors('b', 'o', 0);
 }
 
-void seekEnemy() {
+void beacon() {
   forward();
-  while (isHome() == true) forward();
+    while (isHome() == true) forward();
   return;
 }
 
-boolean lightIncrease() {
-  int vIS = 0, vFS = 0;
-  float vIA, vFA;
-  for (int i; i < 5; i++) {
-    vIS += readADC(0);
-    pause(50);
+void enemy() {
+  leftSensor = readADC(3) - 300;
+  frontSensor = readADC(2);
+  rightSensor = readADC(1) + 500;
+  if (leftSensor < 16000 || frontSensor < 18000 || rightSensor < 16000) { //seeks out a light (just goes forward for now) until it gets within a certain range of a light
+    if (frontSensor <= leftSensor && frontSensor <= rightSensor) forward(); //if the front sensor is receiving the most light, go forward
+    else {
+      motors('b', 'o', 0);
+      pause(100);
+      if (leftSensor <= rightSensor) { //if the left sensor is stronger than the right, turn left until the front sensor is stronger
+        left();
+        while (leftSensor < frontSensor) {
+          leftSensor = readADC(3) - 300;
+          frontSensor = readADC(2);
+          rightSensor = readADC(1) + 500;
+        }
+      }
+      else { //if the left sensor is not stronger than the right, turn right until the front sensor is stronger than the right one
+        right();
+        while (rightSensor < frontSensor) {
+          leftSensor = readADC(3) - 300;
+          frontSensor = readADC(2);
+          rightSensor = readADC(1) + 500;
+        }
+      }
+      pause(100); 
+      motors('b', 'o', 0);
+      pause(100);
+    }
   }
-  vIA = vIS / 5;
-  pause(100);
-  for (int i; i < 5; i++) {
-    vIS += readADC(0);
-    pause(50);
-  }
-  vFA = vFS / 5;
+  else forward(); //probably should replace this with something more complicated and productive in the future
+  return;
 }
+
+/*
+  if (leftSensor >= rightSensor) {
+      if (lightPos(1) >= 0) leftD((180 * PI) * atan(lightPos(1) / lightPos(2)));
+      else leftD(90 + (180 * PI) * atan(lightPos(1) / lightPos(2)));
+    }
+    else {
+      if (lightPos(1) >= 0) rightD((180 * PI) * atan(lightPos(1) / lightPos(2)));
+      else rightD(90 + (180 * PI) * atan(lightPos(1) / lightPos(2)));
+    }
+*/
 
 //x coordinate = coords[0]
 //y coordinate = coords[1] 
 float lightPos(int x) { //gives approximate position of the closest light, assuming (coords[0], coords[1]) is a point on a plane where the robot is at (0,0)
-  leftSensor = readADC(0);
-  frontSensor = readADC(0);
-  rightSensor = readADC(0);
-  coords[0] = .25 * (pow(leftSensor, 2) - pow(rightSensor,2));
-  coords[1] = .25 * sqrt(-pow(leftSensor, 4) + 2*pow(leftSensor, 2)*pow(leftSensor, 2) + 8*pow(leftSensor, 2) - pow(rightSensor, 4) + 8*pow(rightSensor, 2) - 16);
-  if (abs(sqrt(pow(xcoord, 2) + pow(ycoord - 1, 2)) - frontSensor) > 1000) ycoord = ycoord * -1;
+  leftSensor = readADC(3);
+  frontSensor = readADC(2);
+  rightSensor = readADC(1);
+  coords[0] = (pow(leftSensor, 2) - pow(rightSensor,2)) / 4000;
+  coords[1] = .25 * sqrt(-pow(leftSensor, 4) + 2*pow(leftSensor, 2)*pow(leftSensor, 2) + 8*pow(leftSensor, 2) - pow(rightSensor, 4) + 8*pow(rightSensor, 2) - 16); //gives y coordinate because of circles or something, doesn't work right now
+  if (abs(sqrt(pow(coords[0], 2) + pow(coords[1] - 1, 2)) - frontSensor) > 1000) coords[1] = coords[1] * -1; //same thing, doesn't work either
   return coords[x];
 }
 
-void leftBumper() {
+void leftBumper() { //replace with something more complicated in the future
   pause(5);
   motors('b', 'o', 0);
   backD(.25);
@@ -176,7 +204,7 @@ void leftBumper() {
   */
 }
 
-void rightBumper() {
+void rightBumper() { //see leftBumper
   pause(5);
   motors('b', 'o', 0);
   backD(.25);
