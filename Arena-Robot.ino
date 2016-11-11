@@ -1,4 +1,4 @@
-#include <SendOnlySoftwareSerial.h>
+i#include <SendOnlySoftwareSerial.h>
 #include <ArduinoInit.h>
 
 //motor 1 is left
@@ -129,12 +129,10 @@ void rightD(float degree) {
 boolean isHome() { //tests if the robot is currently on friendly ground
   floorSensor = readADC(0);
   if (floorSensor <= 20000) { //currently on white
-    if (base == 'w') return true;
-    else return false;
+    return (base == 'w');
   }
   else { //currently on black
-    if (base == 'b') return true;
-    else return false;
+    return (base == 'b');
   }
 }
 
