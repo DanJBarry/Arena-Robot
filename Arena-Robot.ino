@@ -1,4 +1,4 @@
-i#include <SendOnlySoftwareSerial.h>
+#include <SendOnlySoftwareSerial.h>
 #include <ArduinoInit.h>
 
 //motor 1 is left
