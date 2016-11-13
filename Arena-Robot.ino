@@ -33,7 +33,7 @@ void loop() {
     outputLow(10);
     beacon();
   }
-  else  { //if we're not home, seek enemy light
+  else { //if we're not home, seek enemy light
     outputHigh(10);
     outputLow(12);
     enemy();
@@ -139,29 +139,25 @@ boolean isHome() { //tests if the robot is currently on friendly ground
 void beacon() {
   int beaconInit, beaconFinal;
   beaconInit = readADC(4);
-  leftD(30);
-  beaconFinal = readADC(4);
-  if (beaconFinal - beaconInit > 0) { // if the beacon light increased, keep turning left
-    left();
-    startTime = millis();
-    while (beaconSensor < 18000) { //turn until within a certain range of the beacon light
-      if (millis() - startTime >= 684) { //if the robot has made a full rotation without exiting, something went wrong, go forward a bit and start over
-        forwardD(.25);
-        break;
-      }
-      beaconSensor = readADC(4);
-    }
+  if (beaconInit < 18000) {
+    leftD(30);
+    beaconFinal = readADC(4);
+    if (beaconFinal - beaconInit > 0) turnBeacon('l'); // if the beacon light increased, keep turning left
+    else turnBeacon('r');
   }
-  else {
-    right();
-    startTime = millis();
-    while (beaconSensor < 18000) { //same as above, except in the opposite direction
-      if (millis() -startTime >= 684) {
-        forwardD(.25);
-        break;
-      }
-      beaconSensor = readADC(4);
+  return;
+}
+
+void turnBeacon(char turn) {
+  startTime = millis();
+  if (turn == 'l') left();
+  if (turn == 'r') right();
+  while (beaconSensor < 18000) { //turn until within a certain range of the beacon light
+    if (millis() - startTime >= 684) { //if the robot has made a full rotation without exiting, something went wrong, go forward a bit and start over
+      forwardD(.25);
+      break;
     }
+    beaconSensor = readADC(4);
   }
   return;
 }
@@ -173,46 +169,38 @@ void enemy() {
   if (leftSensor < 16000 || frontSensor < 18000 || rightSensor < 16000) { //if we are close to a light, seek it out
     if ((frontSensor >= leftSensor && frontSensor >= rightSensor) || abs(frontSensor - leftSensor) <= 500 || abs(frontSensor - leftSensor) <= 500) forward(); //if the front sensor is receiving the most light, or very similar to another sensor, go forward
     else {
-      startTime = millis();
-      if (leftSensor <= rightSensor) { //if the left sensor is stronger than the right, turn left until the front sensor is stronger
-        left();
-        while (leftSensor < frontSensor) {
-          if (millis() - startTime >= 684) {
-            forwardD(.25);
-            break;
-          }
-          leftSensor = readADC(3) - 300;
-          frontSensor = readADC(2);
-          rightSensor = readADC(1) + 500;
-        }
-      }
-      else { //if the left sensor is not stronger than the right, turn right until the front sensor is stronger than the right one
-        right();
-        
-        while (rightSensor < frontSensor) {
-          if (millis() - startTime >= 684) {
-            forwardD(.25);
-            break;
-          }
-          leftSensor = readADC(3) - 300;
-          frontSensor = readADC(2);
-          rightSensor = readADC(1) + 500;
-        }
-      }
+      if (leftSensor <= rightSensor) turnEnemy('l');
+      else turnEnemy('r');
     }
   }
   else forward(); //probably should replace this with something more complicated and productive in the future
   return;
 }
 
+void turnEnemy(char turn) { //turns the given direction until the front sensor is stronger
+  startTime = millis();
+  if (turn == 'l') left();
+  if (turn == 'r') right();
+  while (leftSensor < frontSensor || rightSensor < frontSensor) { 
+    if (millis() - startTime >= 684) { //if the robot makes a full rotation without getting within range, move forward a bit and start over
+      forwardD(1);
+      break;
+    }
+    leftSensor = readADC(3) - 300;
+    frontSensor = readADC(2);
+    rightSensor = readADC(1) + 500;
+  }
+  return;
+}
+
 //x coordinate = coords[0]
 //y coordinate = coords[1] 
-float lightPos(int x) { //gives approximate position of the closest light, assuming (coords[0], coords[1]) is a point on a plane where the robot is at (0,0)
+float lightPos(int x) { //gives approximate position of the closest light, assuming (coords[0], coords[1]) is a point on a plane where the robot is at (0,0), doesn't work right now
   leftSensor = readADC(3);
   frontSensor = readADC(2);
   rightSensor = readADC(1);
   coords[0] = (pow(leftSensor, 2) - pow(rightSensor,2)) / 4000;
-  coords[1] = .25 * sqrt(-pow(leftSensor, 4) + 2*pow(leftSensor, 2)*pow(leftSensor, 2) + 8*pow(leftSensor, 2) - pow(rightSensor, 4) + 8*pow(rightSensor, 2) - 16); //gives y coordinate because of circles or something, doesn't work right now
+  coords[1] = .25 * sqrt(-pow(leftSensor, 4) + 2*pow(leftSensor, 2)*pow(leftSensor, 2) + 8*pow(leftSensor, 2) - pow(rightSensor, 4) + 8*pow(rightSensor, 2) - 16); //gives y coordinate because of circles or something
   if (abs(sqrt(pow(coords[0], 2) + pow(coords[1] - 1, 2)) - frontSensor) > 1000) coords[1] = coords[1] * -1; //same thing, doesn't work either
   return coords[x];
 }
