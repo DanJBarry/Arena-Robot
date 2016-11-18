@@ -4,22 +4,22 @@
 //motor 1 is left
 //motor 2 is right
 
-unsigned int floorSensor;
-unsigned int leftSensor;
-unsigned int frontSensor;
-unsigned int rightSensor;
-unsigned int beaconSensor;
-char base;
+unsigned int floorSensor; //readADC(0)
+unsigned int leftSensor; //readADC(3)
+unsigned int frontSensor; //readADC(2)
+unsigned int rightSensor; //readADC(1)
+unsigned int beaconSensor; //readADC(5)
+char base; // 'b' for black home, 'w' for white home
 boolean onWhite;
 boolean change = false; //has the color of the floor changed since the last reading?
 float coords[2]; // x coord = 0, y coord = 1;
 char motorStatus = 'x'; // indicates which way the robot is currently going; x == stopped, w == forward, a == left, s == backward, d == right
-unsigned long startTime;
+unsigned long startTime; //for use with millis()
 
 void setup() {
   configArduino();
-  attachInterrupt(0, leftBumper, LOW);
-  attachInterrupt(1, rightBumper, LOW);   
+  attachInterrupt(0, bumpers, LOW);
+  attachInterrupt(1, bumpers, LOW);   
   outputHigh(4);
   pause(100);
   floorSensor = readADC(0);
@@ -137,14 +137,25 @@ boolean isHome() { //tests if the robot is currently on friendly ground
 }
 
 void beacon() {
-  int beaconInit, beaconFinal;
-  beaconInit = readADC(4);
-  if (beaconInit < 18000) {
-    leftD(30);
-    beaconFinal = readADC(4);
-    if (beaconFinal - beaconInit > 0) turnBeacon('l'); // if the beacon light increased, keep turning left
+  signed int beaconInit, beaconFinal;
+  beaconInit = readADC(5);
+  if (beaconInit > 16000) {
+    left();
+    startTime = millis();
+    pause(200);
+    /*
+    while ((millis() - startTime) >= 114) {
+      if (readADC(5) < 14000) {
+        forward();
+        return;
+      }
+    }
+    */
+    beaconFinal = readADC(5);
+    if ((beaconFinal < beaconInit)) turnBeacon('l');
     else turnBeacon('r');
   }
+  else forward();
   return;
 }
 
@@ -152,12 +163,12 @@ void turnBeacon(char turn) {
   startTime = millis();
   if (turn == 'l') left();
   if (turn == 'r') right();
-  while (beaconSensor < 18000) { //turn until within a certain range of the beacon light
-    if (millis() - startTime >= 684) { //if the robot has made a full rotation without exiting, something went wrong, go forward a bit and start over
-      forwardD(.25);
+  while (beaconSensor > 16000) { //turn until within a certain range of the beacon light
+    if ((millis() - startTime) > 1000) { //if the robot has made a full rotation without exiting, something went wrong, go forward a bit and start over
+      forwardD(1);
       break;
     }
-    beaconSensor = readADC(4);
+    beaconSensor = readADC(5);
   }
   return;
 }
@@ -166,8 +177,8 @@ void enemy() {
   leftSensor = readADC(3) - 300;
   frontSensor = readADC(2);
   rightSensor = readADC(1) + 500;
-  if (leftSensor < 16000 || frontSensor < 18000 || rightSensor < 16000) { //if we are close to a light, seek it out
-    if ((frontSensor >= leftSensor && frontSensor >= rightSensor) || abs(frontSensor - leftSensor) <= 500 || abs(frontSensor - leftSensor) <= 500) forward(); //if the front sensor is receiving the most light, or very similar to another sensor, go forward
+  if (leftSensor < 16000 && frontSensor < 18000 && rightSensor < 16000) { //if we are close to a light, seek it out
+    if ((frontSensor <= leftSensor && frontSensor <= rightSensor) || abs(frontSensor - leftSensor) <= 500 || abs(frontSensor - leftSensor) <= 500) forward(); //if the front sensor is receiving the most light, or very similar to another sensor, go forward
     else {
       if (leftSensor <= rightSensor) turnEnemy('l');
       else turnEnemy('r');
@@ -181,14 +192,15 @@ void turnEnemy(char turn) { //turns the given direction until the front sensor i
   startTime = millis();
   if (turn == 'l') left();
   if (turn == 'r') right();
-  while (leftSensor < frontSensor || rightSensor < frontSensor) { 
+  int targetSensor;
+  while (abs(frontSensor - targetSensor) >= 250 && leftSensor < frontSensor) { 
     if (millis() - startTime >= 684) { //if the robot makes a full rotation without getting within range, move forward a bit and start over
       forwardD(1);
       break;
     }
-    leftSensor = readADC(3) - 300;
     frontSensor = readADC(2);
-    rightSensor = readADC(1) + 500;
+    if (turn == 'l') targetSensor = readADC(3) - 300;
+    if (turn == 'r') targetSensor = readADC(1) + 500;
   }
   return;
 }
@@ -205,33 +217,21 @@ float lightPos(int x) { //gives approximate position of the closest light, assum
   return coords[x];
 }
 
-void leftBumper() { //replace with something more complicated in the future
-  backD(.25);
-  rightD(45);
-  forwardD(.25);
-  return;
-  
-  /*
-  pause(5);
-  motors('b', 'o', 0);
-  backD(.25);
-  xcoord = coords[0];
-  ycoord = coords[1];
-  if (xcoord > 0) {
-    if (ycoord > 0) rightD(90 - 180/PI * atan(ycoord/xcoord));
-    else rightD(90 + 180/PI * atan(ycoord/xcoord));
+void bumpers() { //replace with something more complicated in the future
+  pause(200);
+  boolean leftHit = false, rightHit = false, bothHit = false;
+  if (readInput(3) == 0) leftHit = true;
+  if (readInput(2) == 0) rightHit = true;
+  if (leftHit && rightHit == true) bothHit = true;
+  backD(4);
+  if (bothHit == true) {
+    if (random(0,1) == 0) leftD(75);
+    else rightD(45);
   }
   else {
-    if (ycoord > 0) leftD(90 - 180/PI * atan(ycoord/xcoord));
-    else leftD(90 + 180/PI * atan(ycoord/xcoord));
+    if (leftHit == true) rightD(45);
+    if (rightHit == true) leftD(45);
   }
-  */
-}
-
-void rightBumper() { //see leftBumper
-  backD(.25);
-  leftD(45);
-  forwardD(.25);
-  return;
+  forwardD(1);
 }
 
