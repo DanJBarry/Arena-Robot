@@ -10,7 +10,7 @@ unsigned int frontSensor; //readADC(2)
 unsigned int rightSensor; //readADC(1)
 unsigned int beaconSensor; //readADC(5)
 char base; // 'b' for black home, 'w' for white home
-boolean onWhite;s
+boolean onWhite;
 char motorStatus = 'x'; // indicates which way the robot is currently going; x == stopped, w == forward, a == left, s == backward, d == right
 unsigned long startTime; //for use with millis()
 unsigned long leftTimer = NULL;
@@ -20,6 +20,8 @@ unsigned int lastBeacon = NULL;
 unsigned long beaconTimer = NULL;
 unsigned long lastBeaconCheck = NULL;
 char lastTurn = 'l';
+boolean firstRunBeacon = false;
+boolean firstRunEnemy = true;
 
 void setup() {
   configArduino();
@@ -142,6 +144,11 @@ boolean isHome() { //tests if the robot is currently on friendly ground
 }
 
 void beacon() {
+  if (firstRunBeacon == true) {
+    forwardD(1);
+    firstRunBeacon = false;
+    return;
+  }
   currentBeacon = readADC(5);
   if (lastBeacon == NULL) lastBeacon = currentBeacon;
   if (currentBeacon < 8000) {
@@ -162,7 +169,7 @@ void beacon() {
       beaconTimer = NULL;
       return;
     }
-    if (millis() - lastBeaconCheck >= 100) {
+    if (millis() - lastBeaconCheck >= 200) {
       if (currentBeacon >= lastBeacon) {
         if (motorStatus == 'a') {
           right();
@@ -172,7 +179,6 @@ void beacon() {
           left();
           lastTurn = 'l';
         }
-        beaconTimer = NULL;
       }
       lastBeacon = currentBeacon;
       lastBeaconCheck = millis();
@@ -220,6 +226,11 @@ void turnBeacon(char turn) {
 }*/
 
 void enemy() {
+  if (firstRunEnemy == true){
+    forwardD(4);
+    firstRunEnemy = false;
+    return;
+  }
   leftSensor = readADC(3);
   frontSensor = readADC(2);
   rightSensor = readADC(1);
@@ -239,7 +250,6 @@ void enemy() {
       }
       Serial.println("Left Target");
       left();
-      pause(200);
       break;
     case 'r':
       leftTimer = NULL;
@@ -251,14 +261,12 @@ void enemy() {
       }
       Serial.println("Right Target");
       right();
-      pause(200);
       break;
     case 'f':
       leftTimer = NULL;
       rightTimer = NULL;
       Serial.println("Front Target");
       forward();
-      pause(200);
   }
   return;
 }
@@ -269,15 +277,16 @@ void bumpers() {
   if (readInput(3) == 0) leftHit = true;
   if (readInput(2) == 0) rightHit = true;
   if (leftHit && rightHit) bothHit = true;
-  backD(7);
+  backD(3);
   if (bothHit == true) {
-    if (random(0,1) == 0) leftD(100);
-    else rightD(100);
+    if (random(0,1) == 0) leftD(50);
+    else rightD(50);
   }
   else {
-    if (leftHit == true) rightD(100);
-    if (rightHit == true) leftD(100);
+    if (leftHit == true) rightD(60);
+    if (rightHit == true) leftD(60);
   }
   forwardD(1);
+  return;
 }
 
