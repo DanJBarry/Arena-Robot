@@ -20,7 +20,7 @@ unsigned int lastBeacon = NULL;
 unsigned long beaconTimer = NULL;
 unsigned long lastBeaconCheck = NULL;
 char lastTurn = 'l';
-boolean firstRunBeacon = false;
+boolean firstRunBeacon = true;
 boolean firstRunEnemy = true;
 
 void setup() {
@@ -289,4 +289,3 @@ void bumpers() {
   forwardD(1);
   return;
 }
-
