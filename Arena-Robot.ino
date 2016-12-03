@@ -22,6 +22,7 @@ unsigned long lastBeaconCheck = NULL;
 char lastTurn = 'l';
 boolean firstRunBeacon = true;
 boolean firstRunEnemy = true;
+boolean directionChange = false;
 
 void setup() {
   configArduino();
@@ -105,31 +106,23 @@ void right() {
   return;
 }
 
-void forwardD(float distance){
-  forward();
-  pause(distance * (1 / .009093));
-  halt();
-  return;
-}
-
-void backD(float distance) {
-  back();
-  pause(distance * (1 / .009093));
-  halt();
-  return;
-}
-
-void leftD(float degree) {
-  left();
-  pause(degree * 3.8);
-  halt();
-  return;
-}
-
-void rightD(float degree) {
-  right();
-  pause(degree * 3.75);
-  halt();
+void moveDistance(char movement, float distance) {
+  switch (movement) {
+    case 'w':
+      forward();
+      break;
+    case 'a':
+      left();
+      break;
+    case 's':
+      back();
+      break;
+    case 'd':
+      right();
+      break;
+  }
+  if (movement == 'w' || movement == 's') pause(distance * (1 / .009093));
+  else pause(distance * 3.8);
   return;
 }
 
@@ -145,7 +138,7 @@ boolean isHome() { //tests if the robot is currently on friendly ground
 
 void beacon() {
   if (firstRunBeacon == true) {
-    forwardD(1);
+    moveDistance('w', 1);
     firstRunBeacon = false;
     return;
   }
@@ -154,6 +147,7 @@ void beacon() {
   if (currentBeacon < 8000) {
     forward();
     beaconTimer = NULL;
+    directionChange = false;
   }
   else {
     if (motorStatus == 'w') {
@@ -165,8 +159,9 @@ void beacon() {
       lastBeaconCheck = millis();
     }
     if (millis() - beaconTimer > 1000) {
-      forwardD(1.5);
+      moveDistance('w', 1.5);
       beaconTimer = NULL;
+      directionChange = false;
       return;
     }
     if (millis() - lastBeaconCheck >= 200) {
@@ -174,10 +169,12 @@ void beacon() {
         if (motorStatus == 'a') {
           right();
           lastTurn = 'r';
+          directionChange = true;
         }
         else {
           left();
           lastTurn = 'l';
+          directionChange = true;
         }
       }
       lastBeacon = currentBeacon;
@@ -217,7 +214,7 @@ void turnBeacon(char turn) {
   if (turn == 'r') right();
   while (beaconSensor > 16000) { //turn until within a certain range of the beacon light
     if ((millis() - startTime) > 1000) { //if the robot has made a full rotation without exiting, something went wrong, go forward a bit and start over
-      forwardD(1);
+      moveDistance('w', 1);
       break;
     }
     beaconSensor = readADC(5);
@@ -227,7 +224,7 @@ void turnBeacon(char turn) {
 
 void enemy() {
   if (firstRunEnemy == true){
-    forwardD(4);
+    moveDistance('w', 4);
     firstRunEnemy = false;
     return;
   }
@@ -244,7 +241,7 @@ void enemy() {
       rightTimer = NULL;
       if (leftTimer == NULL) leftTimer = millis();
       if (millis() - leftTimer > 1000) {
-        forwardD(4);
+        moveDistance('w', 4);
         leftTimer = NULL;
         return;
       }
@@ -255,7 +252,7 @@ void enemy() {
       leftTimer = NULL;
       if (rightTimer == NULL) rightTimer = millis();
       if (millis() - rightTimer > 1000) {
-        forwardD(4);
+        moveDistance('w', 4);
         rightTimer = NULL;
         return;
       }
@@ -277,15 +274,15 @@ void bumpers() {
   if (readInput(3) == 0) leftHit = true;
   if (readInput(2) == 0) rightHit = true;
   if (leftHit && rightHit) bothHit = true;
-  backD(3);
+  moveDistance('s', 3);
   if (bothHit == true) {
-    if (random(0,1) == 0) leftD(50);
-    else rightD(50);
+    if (random(0,1) == 0) moveDistance('a', 50);
+    else moveDistance('d', 50);
   }
   else {
-    if (leftHit == true) rightD(60);
-    if (rightHit == true) leftD(60);
+    if (leftHit == true) moveDistance('d', 60);
+    if (rightHit == true) moveDistance('a', 60);
   }
-  forwardD(1);
+  moveDistance('w', 1);
   return;
 }
