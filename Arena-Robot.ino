@@ -23,6 +23,11 @@ char lastTurn = 'l';
 boolean firstRunBeacon = true;
 boolean firstRunEnemy = true;
 boolean directionChange = false;
+unsigned long firstRunTimer = 0;
+boolean bumperActivate = false;
+unsigned long lastForwards[4];
+unsigned long forwardTimer = 0;
+unsigned int forwardCount = 0;
 
 void setup() {
   configArduino();
@@ -137,6 +142,7 @@ boolean isHome() { //tests if the robot is currently on friendly ground
 }
 
 void beacon() {
+  firstRunEnemy = false;
   if (firstRunBeacon == true) {
     moveDistance('w', 1);
     firstRunBeacon = false;
@@ -145,20 +151,33 @@ void beacon() {
   currentBeacon = readADC(5);
   if (lastBeacon == 0) lastBeacon = currentBeacon;
   if (currentBeacon < 8000) {
+    if (motorStatus == 'a' || motorStatus == 'd') {
+      forwardCount++;
+      forwardTimer = millis();
+    }
     forward();
     beaconTimer = 0;
     directionChange = false;
   }
   else {
     if (motorStatus == 'w') {
+      lastForwards[0] = lastForwards[1];
+       lastForwards[1] = lastForwards[2];
+       lastForwards[2] = lastForwards[3];
+       lastForwards[3] = millis() - forwardTimer;
+      if (forwardCount > 3 && lastForwards[0] + lastForwards[1] + lastForwards[2] + lastForwards[3] < 1500) {
+        forwardCount = 0;
+        moveDistance('w', 4);
+      }
       if (lastTurn == 'l') left();
       if (lastTurn == 'r') right();
+      
     }
     if (beaconTimer == 0) {
       beaconTimer = millis();
       lastBeaconCheck = millis();
     }
-    if (millis() - beaconTimer > 1000) {
+    if (millis() - beaconTimer > 1600) {
       moveDistance('w', 1.5);
       beaconTimer = 0;
       directionChange = false;
@@ -223,48 +242,60 @@ void turnBeacon(char turn) {
 }*/
 
 void enemy() {
+  firstRunBeacon = false;
+  currentBeacon = 0;
+  lastBeacon = 0;
+  beaconTimer = 0;
+  lastBeaconCheck = 0;
+  directionChange = false;
   if (firstRunEnemy == true){
-    moveDistance('w', 8);
-    firstRunEnemy = false;
+    bumperActivate = false;
+    firstRunTimer = millis();
+    forward();
+    while (bumperActivate == false || (millis() - firstRunTimer <= 4000)) {
+    }
     return;
   }
   leftSensor = readADC(3);
   frontSensor = readADC(2);
   rightSensor = readADC(1);
   char turn;
-  if (leftSensor < rightSensor && leftSensor <frontSensor) turn = 'l';
-  if (rightSensor < leftSensor && rightSensor < frontSensor) turn = 'r';
-  if ((frontSensor < leftSensor && frontSensor < rightSensor) || (frontSensor < 5000 && (abs(frontSensor - leftSensor) < 250 || abs(frontSensor - rightSensor) < 250))) turn = 'f';
-  Serial.println("Enemy");
-  switch (turn) {
-    case 'l':
-      rightTimer = 0;
-      if (leftTimer == 0) leftTimer = millis();
-      if (millis() - leftTimer > 1000) {
-        moveDistance('w', 4);
-        leftTimer = 0;
-        return;
-      }
-      Serial.println("Left Target");
-      left();
-      break;
-    case 'r':
-      leftTimer = 0;
-      if (rightTimer == 0) rightTimer = millis();
-      if (millis() - rightTimer > 1000) {
-        moveDistance('w', 4);
+  if (leftSensor < 20000 || frontSensor < 20000 || rightSensor < 20000){
+    if (leftSensor < rightSensor && leftSensor <frontSensor) turn = 'l';
+    if (rightSensor < leftSensor && rightSensor < frontSensor) turn = 'r';
+    if (frontSensor < leftSensor && frontSensor < rightSensor) turn = 'f';
+    Serial.println("Enemy");
+    switch (turn) {
+      case 'l':
         rightTimer = 0;
-        return;
-      }
-      Serial.println("Right Target");
-      right();
-      break;
-    case 'f':
-      leftTimer = 0;
-      rightTimer = 0;
-      Serial.println("Front Target");
-      forward();
+        if (leftTimer == 0) leftTimer = millis();
+        if (millis() - leftTimer > 1000) {
+          moveDistance('w', 4);
+          leftTimer = 0;
+          return;
+        }
+        Serial.println("Left Target");
+        left();
+        break;
+      case 'r':
+        leftTimer = 0;
+        if (rightTimer == 0) rightTimer = millis();
+        if (millis() - rightTimer > 1000) {
+          moveDistance('w', 4);
+          rightTimer = 0;
+          return;
+        }
+        Serial.println("Right Target");
+        right();
+        break;
+      case 'f':
+        leftTimer = 0;
+        rightTimer = 0;
+        Serial.println("Front Target");
+        forward();
+    }
   }
+  else forward();
   return;
 }
 
@@ -274,6 +305,7 @@ void bumpers() {
   if (readInput(3) == 0) leftHit = true;
   if (readInput(2) == 0) rightHit = true;
   if (leftHit && rightHit) bothHit = true;
+  if (leftHit || rightHit) bumperActivate = true;
   moveDistance('s', 3);
   if (bothHit == true) {
     if (random(0,1) == 0) moveDistance('a', 50);
