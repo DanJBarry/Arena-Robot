@@ -13,12 +13,12 @@ char base; // 'b' for black home, 'w' for white home
 boolean onWhite;
 char motorStatus = 'x'; // indicates which way the robot is currently going; x == stopped, w == forward, a == left, s == backward, d == right
 unsigned long startTime; //for use with millis()
-unsigned long leftTimer = NULL;
-unsigned long rightTimer = NULL;
-unsigned int currentBeacon = NULL;
-unsigned int lastBeacon = NULL;
-unsigned long beaconTimer = NULL;
-unsigned long lastBeaconCheck = NULL;
+unsigned long leftTimer = 0;
+unsigned long rightTimer = 0;
+unsigned int currentBeacon = 0;
+unsigned int lastBeacon = 0;
+unsigned long beaconTimer = 0;
+unsigned long lastBeaconCheck = 0;
 char lastTurn = 'l';
 boolean firstRunBeacon = true;
 boolean firstRunEnemy = true;
@@ -143,10 +143,10 @@ void beacon() {
     return;
   }
   currentBeacon = readADC(5);
-  if (lastBeacon == NULL) lastBeacon = currentBeacon;
+  if (lastBeacon == 0) lastBeacon = currentBeacon;
   if (currentBeacon < 8000) {
     forward();
-    beaconTimer = NULL;
+    beaconTimer = 0;
     directionChange = false;
   }
   else {
@@ -154,13 +154,13 @@ void beacon() {
       if (lastTurn == 'l') left();
       if (lastTurn == 'r') right();
     }
-    if (beaconTimer == NULL) {
+    if (beaconTimer == 0) {
       beaconTimer = millis();
       lastBeaconCheck = millis();
     }
     if (millis() - beaconTimer > 1000) {
       moveDistance('w', 1.5);
-      beaconTimer = NULL;
+      beaconTimer = 0;
       directionChange = false;
       return;
     }
@@ -224,7 +224,7 @@ void turnBeacon(char turn) {
 
 void enemy() {
   if (firstRunEnemy == true){
-    moveDistance('w', 4);
+    moveDistance('w', 8);
     firstRunEnemy = false;
     return;
   }
@@ -234,34 +234,34 @@ void enemy() {
   char turn;
   if (leftSensor < rightSensor && leftSensor <frontSensor) turn = 'l';
   if (rightSensor < leftSensor && rightSensor < frontSensor) turn = 'r';
-  if (frontSensor < leftSensor && frontSensor < rightSensor) turn = 'f';
+  if ((frontSensor < leftSensor && frontSensor < rightSensor) || (frontSensor < 5000 && (abs(frontSensor - leftSensor) < 250 || abs(frontSensor - rightSensor) < 250))) turn = 'f';
   Serial.println("Enemy");
   switch (turn) {
     case 'l':
-      rightTimer = NULL;
-      if (leftTimer == NULL) leftTimer = millis();
+      rightTimer = 0;
+      if (leftTimer == 0) leftTimer = millis();
       if (millis() - leftTimer > 1000) {
         moveDistance('w', 4);
-        leftTimer = NULL;
+        leftTimer = 0;
         return;
       }
       Serial.println("Left Target");
       left();
       break;
     case 'r':
-      leftTimer = NULL;
-      if (rightTimer == NULL) rightTimer = millis();
+      leftTimer = 0;
+      if (rightTimer == 0) rightTimer = millis();
       if (millis() - rightTimer > 1000) {
         moveDistance('w', 4);
-        rightTimer = NULL;
+        rightTimer = 0;
         return;
       }
       Serial.println("Right Target");
       right();
       break;
     case 'f':
-      leftTimer = NULL;
-      rightTimer = NULL;
+      leftTimer = 0;
+      rightTimer = 0;
       Serial.println("Front Target");
       forward();
   }
